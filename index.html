@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Orbital Horizon - Lightweight Space Station VR</title>
+  <meta name="description" content="A lightweight, fast-loading WebXR orbital space station demonstration for Meta Quest 3 and desktop browsers.">
+
+  <!-- A-Frame CDN (Lightweight WebXR Framework) -->
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #00e5ff;
+      --primary-glow: rgba(0, 229, 255, 0.4);
+      --bg-glass: rgba(10, 16, 28, 0.78);
+      --border-glass: rgba(0, 229, 255, 0.25);
+      --text-main: #f0f6fc;
+      --text-muted: #8b9bb4;
+      --accent-green: #00ff88;
+      --accent-warn: #ffaa00;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #000;
+      color: var(--text-main);
+    }
+
+    /* 2D Desktop Overlay UI */
+    #ui-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px 32px;
+      transition: opacity 0.5s ease;
+    }
+
+    /* Top Navigation Bar */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: auto;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 15px var(--primary-glow);
+      background: radial-gradient(circle, rgba(0, 229, 255, 0.2) 0%, rgba(0,0,0,0.8) 100%);
+    }
+
+    .brand-logo svg {
+      width: 20px;
+      height: 20px;
+      fill: var(--primary);
+    }
+
+    .brand-text h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #fff;
+      text-transform: uppercase;
+      text-shadow: 0 0 10px var(--primary-glow);
+    }
+
+    .brand-text p {
+      font-size: 11px;
+      color: var(--primary);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      padding: 8px 16px;
+      border-radius: 20px;
+      backdrop-filter: blur(8px);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--accent-green);
+      box-shadow: 0 0 8px var(--accent-green);
+      animation: pulse 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    /* Center Message / Info Card (Desktop) */
+    .info-toast {
+      position: absolute;
+      top: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      padding: 12px 24px;
+      border-radius: 12px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      text-align: center;
+      pointer-events: auto;
+      max-width: 440px;
+      transition: all 0.3s ease;
+    }
+
+    .info-toast h3 {
+      font-size: 14px;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 4px;
+    }
+
+    .info-toast p {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Bottom Control Bar */
+    .bottom-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      pointer-events: auto;
+    }
+
+    .controls-guide {
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      padding: 14px 20px;
+      border-radius: 14px;
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .controls-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .keys-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 13px;
+    }
+
+    .key-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .key-badge {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-weight: 700;
+      color: #fff;
+      font-size: 11px;
+    }
+
+    /* Quick Action Buttons */
+    .action-panel {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.25s ease;
+      border: none;
+      outline: none;
+    }
+
+    .btn-vr {
+      background: linear-gradient(135deg, #00e5ff 0%, #0077ff 100%);
+      color: #000;
+      box-shadow: 0 0 20px var(--primary-glow);
+    }
+
+    .btn-vr:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 30px rgba(0, 229, 255, 0.8);
+      background: linear-gradient(135deg, #33ebff 0%, #3392ff 100%);
+    }
+
+    .btn-glass {
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      color: var(--text-main);
+      backdrop-filter: blur(8px);
+    }
+
+    .btn-glass:hover {
+      background: rgba(0, 229, 255, 0.15);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    /* Custom Crosshair on Desktop */
+    #desktop-reticle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 8px;
+      height: 8px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.4);
+      border: 1px solid rgba(0, 229, 255, 0.6);
+      pointer-events: none;
+      z-index: 999;
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    /* Hide 2D UI when in VR */
+    .a-in-vr #ui-overlay,
+    .a-in-vr #desktop-reticle {
+      display: none !important;
+    }
+
+    @media (max-width: 768px) {
+      #ui-overlay { padding: 16px; }
+      .controls-guide { display: none; }
+      .brand-text h1 { font-size: 16px; }
+      .btn { padding: 10px 18px; font-size: 12px; }
+    }
+  </style>
+
+  <script>
+    // ==========================================
+    // PROCEDURAL TEXTURE GENERATION (Fast & Lightweight)
+    // ==========================================
+    (function generateProceduralAssets() {
+      // 1. Starfield Canvas (Sky)
+      const starCanvas = document.createElement('canvas');
+      starCanvas.id = 'starCanvas';
+      starCanvas.width = 2048;
+      starCanvas.height = 1024;
+      const sCtx = starCanvas.getContext('2d');
+      
+      // Deep space black-blue gradient
+      const skyGrad = sCtx.createLinearGradient(0, 0, 0, 1024);
+      skyGrad.addColorStop(0, '#02040a');
+      skyGrad.addColorStop(0.5, '#050a14');
+      skyGrad.addColorStop(1, '#02040a');
+      sCtx.fillStyle = skyGrad;
+      sCtx.fillRect(0, 0, 2048, 1024);
+
+      // Faint subtle cosmic dust / nebulae
+      for (let n = 0; n < 3; n++) {
+        const nx = 300 + n * 600;
+        const ny = 300 + (n % 2) * 300;
+        const nGrad = sCtx.createRadialGradient(nx, ny, 20, nx, ny, 400);
+        nGrad.addColorStop(0, n === 0 ? 'rgba(0, 150, 255, 0.08)' : (n === 1 ? 'rgba(180, 50, 255, 0.06)' : 'rgba(0, 255, 180, 0.05)'));
+        nGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        sCtx.fillStyle = nGrad;
+        sCtx.fillRect(0, 0, 2048, 1024);
+      }
+
+      // Generate ~450 crisp stars
+      for (let i = 0; i < 450; i++) {
+        const x = Math.random() * 2048;
+        const y = Math.random() * 1024;
+        const radius = Math.random() * 1.5 + 0.3;
+        const brightness = Math.random() * 0.7 + 0.3;
+        
+        // Star colors: crisp white, soft blue, warm gold
+        const randColor = Math.random();
+        let starColor = `rgba(255, 255, 255, ${brightness})`;
+        if (randColor > 0.8) starColor = `rgba(180, 225, 255, ${brightness})`;
+        else if (randColor > 0.65) starColor = `rgba(255, 235, 180, ${brightness})`;
+
+        sCtx.beginPath();
+        sCtx.arc(x, y, radius, 0, Math.PI * 2);
+        sCtx.fillStyle = starColor;
+        sCtx.fill();
+
+        // Extra twinkle for larger stars
+        if (radius > 1.3) {
+          sCtx.beginPath();
+          sCtx.arc(x, y, radius * 2.5, 0, Math.PI * 2);
+          sCtx.fillStyle = `rgba(255, 255, 255, ${brightness * 0.25})`;
+          sCtx.fill();
+        }
+      }
+
+      // 2. Earth Procedural Texture Canvas
+      const earthCanvas = document.createElement('canvas');
+      earthCanvas.id = 'earthCanvas';
+      earthCanvas.width = 1024;
+      earthCanvas.height = 512;
+      const eCtx = earthCanvas.getContext('2d');
+
+      // Ocean base
+      const oceanGrad = eCtx.createLinearGradient(0, 0, 0, 512);
+      oceanGrad.addColorStop(0, '#0c2e60');
+      oceanGrad.addColorStop(0.5, '#0b3c75');
+      oceanGrad.addColorStop(1, '#0c2e60');
+      eCtx.fillStyle = oceanGrad;
+      eCtx.fillRect(0, 0, 1024, 512);
+
+      // Stylized continents (Americas, Africa, Europe, Asia, Australia, Antarctica)
+      eCtx.fillStyle = '#2d6a4f'; // Green-brown landmass
+
+      // Americas
+      eCtx.beginPath();
+      eCtx.ellipse(280, 180, 80, 60, -0.2, 0, Math.PI * 2); // North America
+      eCtx.ellipse(330, 320, 60, 90, 0.2, 0, Math.PI * 2);  // South America
+      eCtx.fill();
+
+      // Eurasia & Africa
+      eCtx.fillStyle = '#386641';
+      eCtx.beginPath();
+      eCtx.ellipse(560, 290, 70, 90, 0, 0, Math.PI * 2);   // Africa
+      eCtx.ellipse(600, 170, 130, 65, 0, 0, Math.PI * 2);  // Europe / Asia
+      eCtx.ellipse(760, 200, 110, 60, 0.1, 0, Math.PI * 2); // East Asia
+      eCtx.fill();
+
+      // Australia
+      eCtx.fillStyle = '#7f5539';
+      eCtx.beginPath();
+      eCtx.ellipse(820, 360, 55, 40, -0.1, 0, Math.PI * 2);
+      eCtx.fill();
+
+      // Polar Ice Caps
+      eCtx.fillStyle = '#eaf4f4';
+      eCtx.fillRect(0, 0, 1024, 35);
+      eCtx.fillRect(0, 480, 1024, 32);
+
+      // 3. Earth Clouds Canvas
+      const cloudCanvas = document.createElement('canvas');
+      cloudCanvas.id = 'cloudCanvas';
+      cloudCanvas.width = 1024;
+      cloudCanvas.height = 512;
+      const cCtx = cloudCanvas.getContext('2d');
+      cCtx.fillStyle = 'rgba(0,0,0,0)';
+      cCtx.fillRect(0, 0, 1024, 512);
+
+      cCtx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      for (let i = 0; i < 40; i++) {
+        const cx = Math.random() * 1024;
+        const cy = 60 + Math.random() * 390;
+        const cw = 60 + Math.random() * 140;
+        const ch = 15 + Math.random() * 35;
+        cCtx.beginPath();
+        cCtx.ellipse(cx, cy, cw, ch, Math.random() * 0.4 - 0.2, 0, Math.PI * 2);
+        cCtx.fill();
+      }
+
+      // 4. Moon Canvas
+      const moonCanvas = document.createElement('canvas');
+      moonCanvas.id = 'moonCanvas';
+      moonCanvas.width = 512;
+      moonCanvas.height = 256;
+      const mCtx = moonCanvas.getContext('2d');
+      mCtx.fillStyle = '#9e9e9e';
+      mCtx.fillRect(0, 0, 512, 256);
+
+      // Craters
+      mCtx.fillStyle = '#757575';
+      for (let i = 0; i < 30; i++) {
+        const mx = Math.random() * 512;
+        const my = Math.random() * 256;
+        const mr = 4 + Math.random() * 18;
+        mCtx.beginPath();
+        mCtx.arc(mx, my, mr, 0, Math.PI * 2);
+        mCtx.fill();
+      }
+
+      // Append canvases to document body head when ready
+      document.addEventListener('DOMContentLoaded', () => {
+        const assets = document.querySelector('a-assets');
+        if (assets) {
+          assets.appendChild(starCanvas);
+          assets.appendChild(earthCanvas);
+          assets.appendChild(cloudCanvas);
+          assets.appendChild(moonCanvas);
+        }
+      });
+    })();
+
+    // ==========================================
+    // PROCEDURAL AUDIO SYNTHESIZER (No External Files)
+    // ==========================================
+    const SoundFX = {
+      ctx: null,
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      },
+      playBeep(freq = 880, dur = 0.08) {
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(freq * 1.5, this.ctx.currentTime + dur);
+          gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + dur);
+        } catch (e) {}
+      },
+      playDoorSound() {
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const now = this.ctx.currentTime;
+          // Servo tone
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(140, now);
+          osc.frequency.linearRampToValueAtTime(80, now + 0.6);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.linearRampToValueAtTime(0.001, now + 0.6);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(now + 0.6);
+        } catch (e) {}
+      }
+    };
+
+    // ==========================================
+    // CUSTOM A-FRAME COMPONENTS
+    // ==========================================
+    
+    // 1. Smooth Thumbstick Movement for Quest 3 Controllers
+    AFRAME.registerComponent('thumbstick-movement', {
+      schema: { speed: { default: 0.08 } },
+      init: function () {
+        this.moveX = 0;
+        this.moveZ = 0;
+        this.el.addEventListener('axismove', (evt) => {
+          // Axis 2 & 3 for Quest thumbsticks
+          if (evt.detail.axis.length >= 4) {
+            this.moveX = evt.detail.axis[2];
+            this.moveZ = evt.detail.axis[3];
+          } else if (evt.detail.axis.length >= 2) {
+            this.moveX = evt.detail.axis[0];
+            this.moveZ = evt.detail.axis[1];
+          }
+        });
+      },
+      tick: function () {
+        if (Math.abs(this.moveX) > 0.1 || Math.abs(this.moveZ) > 0.1) {
+          const rig = document.getElementById('rig');
+          const camera = document.getElementById('camera');
+          if (!rig || !camera) return;
+          
+          const rot = camera.getAttribute('rotation');
+          const angle = (rot.y * Math.PI) / 180;
+          
+          const dx = (this.moveX * Math.cos(angle) + this.moveZ * Math.sin(angle)) * this.data.speed;
+          const dz = (-this.moveX * Math.sin(angle) + this.moveZ * Math.cos(angle)) * this.data.speed;
+          
+          const pos = rig.getAttribute('position');
+          rig.setAttribute('position', {
+            x: pos.x + dx,
+            y: pos.y,
+            z: pos.z + dz
+          });
+        }
+      }
+    });
+
+    // 2. Station Bounds Clamp (Keep player inside space station walls)
+    AFRAME.registerComponent('station-bounds', {
+      tick: function () {
+        const pos = this.el.getAttribute('position');
+        if (!pos) return;
+        
+        let clamped = false;
+        let newX = pos.x;
+        let newZ = pos.z;
+
+        // Bounding limits of space station rooms
+        const minX = -6.2, maxX = 6.2;
+        const minZ = -3.8, maxZ = 5.8;
+
+        if (newX < minX) { newX = minX; clamped = true; }
+        if (newX > maxX) { newX = maxX; clamped = true; }
+        if (newZ < minZ) { newZ = minZ; clamped = true; }
+        if (newZ > maxZ) { newZ = maxZ; clamped = true; }
+
+        if (clamped) {
+          this.el.setAttribute('position', { x: newX, y: pos.y, z: newZ });
+        }
+      }
+    });
+
+    // 3. Interactive Planet Clicker Component
+    AFRAME.registerComponent('planet-info', {
+      schema: {
+        name: { type: 'string', default: 'Planet' },
+        info: { type: 'string', default: 'Details' }
+      },
+      init: function () {
+        this.el.addEventListener('click', () => {
+          SoundFX.playBeep(1100);
+          updateInfoDisplay(this.data.name, this.data.info);
+        });
+      }
+    });
+  </script>
+</head>
+<body>
+
+  <!-- 2D Screen Overlay UI -->
+  <div id="ui-overlay">
+    <!-- Top Header -->
+    <header class="top-bar">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/>
+            <path d="M3 12h18M12 3c3 3 5 6 5 9s-2 6-5 9c-3-3-5-6-5-9s2-6 5-9z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>Orbital Horizon</h1>
+          <p>Orbital Station Alpha // Low Earth Orbit</p>
+        </div>
+      </div>
+      <div class="status-badge">
+        <div class="status-dot"></div>
+        <span>STATION STATUS: ONLINE</span>
+      </div>
+    </header>
+
+    <!-- Interactive Info Readout (Desktop & VR Sync) -->
+    <div id="info-toast" class="info-toast">
+      <h3 id="toast-title">Observation Deck</h3>
+      <p id="toast-desc">Look through the panoramic window to view Earth in real-time orbit. Walk freely between station modules.</p>
+    </div>
+
+    <!-- Bottom Action & Controls Bar -->
+    <footer class="bottom-bar">
+      <div class="controls-guide">
+        <span class="controls-title">Desktop Navigation</span>
+        <div class="keys-row">
+          <div class="key-group">
+            <span class="key-badge">W</span>
+            <span class="key-badge">A</span>
+            <span class="key-badge">S</span>
+            <span class="key-badge">D</span>
+            <span>Move</span>
+          </div>
+          <div class="key-group">
+            <span class="key-badge">Mouse</span>
+            <span>Look</span>
+          </div>
+          <div class="key-group">
+            <span class="key-badge">Click / E</span>
+            <span>Interact</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="action-panel">
+        <button id="btn-toggle-lights" class="btn btn-glass" onclick="toggleInteriorLights()">
+          💡 Lights
+        </button>
+        <button id="btn-toggle-airlock" class="btn btn-glass" onclick="toggleAirlockDoor()">
+          🚪 Airlock
+        </button>
+        <button id="btn-enter-vr" class="btn btn-vr" onclick="enterVRMode()">
+          🥽 ENTER VR
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Center Desktop Crosshair / Reticle -->
+  <div id="desktop-reticle"></div>
+
+  <!-- A-FRAME 3D SCENE -->
+  <a-scene
+    renderer="antialias: true; colorManagement: true; powerPreference: high; precision: medium;"
+    vr-mode-ui="enabled: false"
+    loading-screen="dotsColor: #00e5ff; backgroundColor: #02040a"
+  >
+    <!-- Asset Management -->
+    <a-assets timeout="4000">
+      <!-- Canvases are injected dynamically in <script> -->
+      <a-mixin id="button-base"
+        geometry="primitive: box; depth: 0.05; height: 0.22; width: 0.55"
+        material="color: #1e293b; roughness: 0.3; metalness: 0.6;"
+        animation__mouseenter="property: scale; to: 1.05 1.05 1.05; dur: 150"
+        animation__mouseleave="property: scale; to: 1 1 1; dur: 150">
+      </a-mixin>
+      <a-mixin id="screen-glow"
+        material="color: #0b192c; emissive: #00e5ff; emissiveIntensity: 0.25; roughness: 0.2;">
+      </a-mixin>
+    </a-assets>
+
+    <!-- ==========================================
+         LIGHTING (Optimized minimal count)
+         ========================================== -->
+    <!-- Ambient Interior Glow -->
+    <a-light id="ambientLight" type="ambient" color="#b0cddb" intensity="0.55"></a-light>
+    
+    <!-- Exterior Sunlight (Directional) -->
+    <a-light id="sunLight" type="directional" color="#fff8e7" intensity="1.25" position="-40 30 -60"></a-light>
+
+    <!-- Soft Interior Point Lights -->
+    <a-light id="stationLight1" type="point" color="#cceeff" intensity="0.65" distance="12" position="0 2.8 0"></a-light>
+    <a-light id="stationLight2" type="point" color="#00e5ff" intensity="0.4" distance="8" position="4 2.5 1"></a-light>
+    <a-light id="stationLight3" type="point" color="#00ff88" intensity="0.35" distance="8" position="-4 2.5 1"></a-light>
+
+    <!-- ==========================================
+         PLAYER RIG & VR CONTROLLERS
+         ========================================== -->
+    <a-entity id="rig" position="0 0 1" station-bounds>
+      <!-- Camera (Spawns facing 0 0 -1 towards panoramic Earth window) -->
+      <a-camera id="camera" position="0 1.6 0" look-controls="pointerLockEnabled: false" wasd-controls="acceleration: 22">
+        <!-- Desktop reticle raycaster for clicking -->
+        <a-cursor
+          id="cursor"
+          raycaster="objects: .clickable; far: 8"
+          fuse="false"
+          material="color: #00e5ff; shader: flat; opacity: 0.7"
+          geometry="primitive: ring; radiusInner: 0.005; radiusOuter: 0.009"
+          position="0 0 -0.8"
+          animation__click="property: scale; startEvents: click; easing: easeInCubic; dur: 120; from: 0.1 0.1 0.1; to: 1 1 1">
+        </a-cursor>
+      </a-camera>
+
+      <!-- Meta Quest 3 Controllers -->
+      <!-- Left Hand -->
+      <a-entity id="leftController"
+        oculus-touch-controls="hand: left"
+        laser-controls="hand: left"
+        raycaster="objects: .clickable; showLine: true; far: 12; lineColor: #00e5ff; lineOpacity: 0.75"
+        thumbstick-movement="speed: 0.07">
+      </a-entity>
+
+      <!-- Right Hand -->
+      <a-entity id="rightController"
+        oculus-touch-controls="hand: right"
+        laser-controls="hand: right"
+        raycaster="objects: .clickable; showLine: true; far: 12; lineColor: #00e5ff; lineOpacity: 0.75"
+        thumbstick-movement="speed: 0.07">
+      </a-entity>
+    </a-entity>
+
+    <!-- ==========================================
+         DEEP SPACE & CELESTIAL BODIES
+         ========================================== -->
+    <!-- Starfield Sky -->
+    <a-sky id="starSky" src="#starCanvas" rotation="0 45 0"></a-sky>
+
+    <!-- EARTH (Main visual focal point outside the window) -->
+    <!-- Positioned directly at 0 0 -38 in front of the observation deck -->
+    <a-entity id="earthGroup" position="0 2 -38">
+      <!-- Base Earth Globe with Procedural Canvas Texture -->
+      <a-sphere id="earthSphere"
+        radius="12"
+        segments-width="48"
+        segments-height="48"
+        src="#earthCanvas"
+        material="roughness: 0.7; metalness: 0.1;"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 320000; easing: linear">
+      </a-sphere>
+
+      <!-- Transparent Cloud Layer rotating slightly faster -->
+      <a-sphere id="earthClouds"
+        radius="12.18"
+        segments-width="36"
+        segments-height="36"
+        src="#cloudCanvas"
+        material="transparent: true; opacity: 0.65; roughness: 0.9;"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 220000; easing: linear">
+      </a-sphere>
+
+      <!-- Atmospheric Blue Glow Halo -->
+      <a-sphere id="earthAtmosphere"
+        radius="12.5"
+        segments-width="32"
+        segments-height="32"
+        material="color: #4da6ff; shader: flat; transparent: true; opacity: 0.12; side: back;">
+      </a-sphere>
+    </a-entity>
+
+    <!-- MOON -->
+    <a-sphere id="moonSphere"
+      position="28 16 -75"
+      radius="3.2"
+      segments-width="24"
+      segments-height="24"
+      src="#moonCanvas"
+      material="roughness: 0.85; metalness: 0.05;"
+      animation="property: rotation; to: 0 360 0; loop: true; dur: 450000; easing: linear">
+    </a-sphere>
+
+    <!-- THE SUN -->
+    <a-entity position="-55 42 -85">
+      <a-sphere radius="7" material="color: #fff4cc; emissive: #ffd700; emissiveIntensity: 1.5; shader: flat;"></a-sphere>
+      <!-- Subtle Sun Glow Sphere -->
+      <a-sphere radius="9.5" material="color: #ffaa00; shader: flat; transparent: true; opacity: 0.2;"></a-sphere>
+    </a-entity>
+
+    <!-- ==========================================
+         EDUCATIONAL SOLAR SYSTEM MODEL (Outside Viewport)
+         ========================================== -->
+    <a-entity id="solarSystemExhibit" position="14 1 -16" rotation="0 -30 0">
+      <!-- Exhibit Base Ring -->
+      <a-torus radius="8" radius-tubular="0.015" rotation="90 0 0" material="color: #00e5ff; opacity: 0.2; transparent: true; shader: flat"></a-torus>
+
+      <!-- Central Mini Sun -->
+      <a-sphere position="0 0 0" radius="0.75" material="color: #ffe600; emissive: #ff9900; emissiveIntensity: 1; shader: flat"></a-sphere>
+      <a-text value="SUN" position="0 1.1 0" align="center" scale="0.6 0.6 0.6" color="#ffd700"></a-text>
+
+      <!-- Mercury -->
+      <a-entity class="clickable" planet-info="name: MERCURY; info: Type: Terrestrial | Orbit: 88 Days | Temp: -180C to 430C | Closest planet to the Sun." position="1.6 0 0">
+        <a-sphere radius="0.12" material="color: #9e9e9e; roughness: 0.8"></a-sphere>
+        <a-text value="Mercury" position="0 0.25 0" align="center" scale="0.35 0.35 0.35" color="#b0bec5"></a-text>
+      </a-entity>
+
+      <!-- Venus -->
+      <a-entity class="clickable" planet-info="name: VENUS; info: Type: Terrestrial | Atmosphere: 96% CO2 | Hottest planet (465C) with runaway greenhouse effect." position="2.6 0 0.5">
+        <a-sphere radius="0.22" material="color: #e3bb7b; roughness: 0.6"></a-sphere>
+        <a-text value="Venus" position="0 0.35 0" align="center" scale="0.35 0.35 0.35" color="#ffd54f"></a-text>
+      </a-entity>
+
+      <!-- Earth (Exhibit) -->
+      <a-entity class="clickable" planet-info="name: EARTH; info: Type: Terrestrial Planet | Diameter: 12,742 km | Only known world harboring biological life." position="3.8 0 -0.2">
+        <a-sphere radius="0.24" material="color: #2e86de; roughness: 0.5"></a-sphere>
+        <a-text value="Earth" position="0 0.38 0" align="center" scale="0.35 0.35 0.35" color="#4fc3f7"></a-text>
+      </a-entity>
+
+      <!-- Mars -->
+      <a-entity class="clickable" planet-info="name: MARS; info: Type: Terrestrial | Known as Red Planet | Home to Olympus Mons, largest volcano in Solar System." position="4.9 0 0.8">
+        <a-sphere radius="0.18" material="color: #e55039; roughness: 0.7"></a-sphere>
+        <a-text value="Mars" position="0 0.32 0" align="center" scale="0.35 0.35 0.35" color="#ff7043"></a-text>
+      </a-entity>
+
+      <!-- Jupiter -->
+      <a-entity class="clickable" planet-info="name: JUPITER; info: Type: Gas Giant | Mass: 318 Earth masses | Massive Great Red Spot storm larger than Earth." position="6.3 0 -0.6">
+        <a-sphere radius="0.55" material="color: #dda15e; roughness: 0.6"></a-sphere>
+        <a-text value="Jupiter" position="0 0.75 0" align="center" scale="0.4 0.4 0.4" color="#ffb74d"></a-text>
+      </a-entity>
+
+      <!-- Saturn (with Ring) -->
+      <a-entity class="clickable" planet-info="name: SATURN; info: Type: Gas Giant | Famous for stunning ring system made of billions of ice/rock particles." position="7.8 0 0.4">
+        <a-sphere radius="0.46" material="color: #f4a261; roughness: 0.5"></a-sphere>
+        <!-- Ring Plane -->
+        <a-ring radius-inner="0.6" radius-outer="0.95" rotation="75 25 0" material="color: #c89d7c; side: double; opacity: 0.85; transparent: true;"></a-ring>
+        <a-text value="Saturn" position="0 0.7 0" align="center" scale="0.4 0.4 0.4" color="#ffe082"></a-text>
+      </a-entity>
+
+      <!-- Uranus -->
+      <a-entity class="clickable" planet-info="name: URANUS; info: Type: Ice Giant | Unique 98-degree axial tilt (rotates on its side) with faint rings." position="9.2 0 -0.4">
+        <a-sphere radius="0.34" material="color: #74b9ff; roughness: 0.4"></a-sphere>
+        <a-text value="Uranus" position="0 0.5 0" align="center" scale="0.35 0.35 0.35" color="#81d4fa"></a-text>
+      </a-entity>
+
+      <!-- Neptune -->
+      <a-entity class="clickable" planet-info="name: NEPTUNE; info: Type: Ice Giant | Fastest winds in the Solar System reaching over 2,100 km/h." position="10.4 0 0.2">
+        <a-sphere radius="0.32" material="color: #0984e3; roughness: 0.4"></a-sphere>
+        <a-text value="Neptune" position="0 0.5 0" align="center" scale="0.35 0.35 0.35" color="#42a5f5"></a-text>
+      </a-entity>
+    </a-entity>
+
+
+    <!-- ==========================================
+         SPACE STATION ARCHITECTURE (Interior Rooms)
+         ========================================== -->
+    <a-entity id="spaceStation">
+
+      <!-- 1. FLOOR & CEILING -->
+      <!-- Main Hub Floor (Metallic composite with dark panels) -->
+      <a-plane position="0 0 1" rotation="-90 0 0" width="13" height="11" material="color: #1a1e24; roughness: 0.4; metalness: 0.6"></a-plane>
+      <!-- Floor Guide Accent Lines -->
+      <a-plane position="0 0.01 1" rotation="-90 0 0" width="0.1" height="9" material="color: #00e5ff; emissive: #00e5ff; emissiveIntensity: 0.5; shader: flat; opacity: 0.7"></a-plane>
+      <a-plane position="0 0.01 1" rotation="-90 0 0" width="10" height="0.1" material="color: #00e5ff; emissive: #00e5ff; emissiveIntensity: 0.5; shader: flat; opacity: 0.7"></a-plane>
+
+      <!-- Ceiling -->
+      <a-plane position="0 3.2 1" rotation="90 0 0" width="13" height="11" material="color: #242b35; roughness: 0.6; metalness: 0.4"></a-plane>
+      <!-- Overhead Light Fixtures -->
+      <a-box position="0 3.18 0" width="4" height="0.05" depth="0.4" material="color: #ffffff; emissive: #cceeff; emissiveIntensity: 0.8; shader: flat;"></a-box>
+      <a-box position="4 3.18 1" width="0.4" height="0.05" depth="3" material="color: #ffffff; emissive: #00e5ff; emissiveIntensity: 0.6; shader: flat;"></a-box>
+      <a-box position="-4 3.18 1" width="0.4" height="0.05" depth="3" material="color: #ffffff; emissive: #00ff88; emissiveIntensity: 0.6; shader: flat;"></a-box>
+
+      <!-- 2. EXTERIOR WALLS & PANORAMIC VIEWPORT -->
+      <!-- North Wall (OBSERVATION DECK VIEWPORT) -->
+      <!-- Top header beam above window -->
+      <a-box position="0 2.8 -4.5" width="13" height="0.8" depth="0.3" material="color: #2d3748; metalness: 0.5; roughness: 0.4"></a-box>
+      <!-- Bottom ledge below window -->
+      <a-box position="0 0.4 -4.5" width="13" height="0.8" depth="0.3" material="color: #2d3748; metalness: 0.5; roughness: 0.4"></a-box>
+      <!-- Left & Right corner pillars -->
+      <a-box position="-6.4 1.6 -4.5" width="0.4" height="3.2" depth="0.3" material="color: #1e293b"></a-box>
+      <a-box position="6.4 1.6 -4.5" width="0.4" height="3.2" depth="0.3" material="color: #1e293b"></a-box>
+      
+      <!-- Window Support Mullions / Pillars -->
+      <a-cylinder position="-2.2 1.6 -4.48" radius="0.08" height="2" material="color: #475569; metalness: 0.7"></a-cylinder>
+      <a-cylinder position="2.2 1.6 -4.48" radius="0.08" height="2" material="color: #475569; metalness: 0.7"></a-cylinder>
+
+      <!-- Transparent Window Glass Pane -->
+      <a-plane position="0 1.6 -4.45" width="12.6" height="2" material="color: #0b2038; transparent: true; opacity: 0.18; roughness: 0.1; metalness: 0.8; side: double;"></a-plane>
+
+      <!-- South Wall (Living Area & Airlock Entrance) -->
+      <a-box position="-3.5 1.6 6.4" width="6" height="3.2" depth="0.2" material="color: #334155; roughness: 0.5"></a-box>
+      <a-box position="4.5 1.6 6.4" width="4" height="3.2" depth="0.2" material="color: #334155; roughness: 0.5"></a-box>
+
+      <!-- East Wall (Control Room Wall with Viewport) -->
+      <a-box position="6.4 1.6 1" width="0.2" height="3.2" depth="11" material="color: #334155; roughness: 0.5"></a-box>
+
+      <!-- West Wall (Research & Living Area Wall) -->
+      <a-box position="-6.4 1.6 1" width="0.2" height="3.2" depth="11" material="color: #334155; roughness: 0.5"></a-box>
+
+      <!-- Interior Divider Partitions -->
+      <!-- Divider between Hub and Control Room (East) -->
+      <a-box position="2.8 1.6 1" width="0.15" height="3.2" depth="4" material="color: #1e293b; roughness: 0.6"></a-box>
+      
+      <!-- Divider between Hub and Research Bay (West) -->
+      <a-box position="-2.8 1.6 0" width="0.15" height="3.2" depth="3.5" material="color: #1e293b; roughness: 0.6"></a-box>
+
+      <!-- Divider between Research Bay and Living Quarters -->
+      <a-box position="-4.6 1.6 2.8" width="3.5" height="3.2" depth="0.15" material="color: #1e293b; roughness: 0.6"></a-box>
+
+
+      <!-- ==========================================
+           ROOM 1: OBSERVATION AREA
+           ========================================== -->
+      <a-entity id="roomObservation" position="0 0 -2.8">
+        <!-- Center Observation Railing / Console Desk -->
+        <a-box position="0 0.85 -1.2" width="2.4" height="0.08" depth="0.6" material="color: #1e293b; metalness: 0.6; roughness: 0.3"></a-box>
+        <a-cylinder position="-1 0.42 -1.2" radius="0.05" height="0.85" material="color: #475569"></a-cylinder>
+        <a-cylinder position="1 0.42 -1.2" radius="0.05" height="0.85" material="color: #475569"></a-cylinder>
+
+        <!-- Floating VR Info Screen on Railing -->
+        <a-entity position="0 1.25 -1.2" rotation="-15 0 0">
+          <a-plane width="1.2" height="0.55" material="color: #071326; emissive: #00e5ff; emissiveIntensity: 0.15; opacity: 0.9; transparent: true;"></a-plane>
+          <a-text id="vr-info-title" value="ORBITAL HORIZON" position="0 0.16 0.01" align="center" scale="0.45 0.45 0.45" color="#00e5ff"></a-text>
+          <a-text id="vr-info-line1" value="Station Status: ONLINE" position="0 0.04 0.01" align="center" scale="0.3 0.3 0.3" color="#00ff88"></a-text>
+          <a-text id="vr-info-line2" value="Altitude: 408 km | Speed: 7.66 km/s" position="0 -0.07 0.01" align="center" scale="0.25 0.25 0.25" color="#94a3b8"></a-text>
+          <a-text id="vr-info-line3" value="Target: Low Earth Orbit" position="0 -0.17 0.01" align="center" scale="0.25 0.25 0.25" color="#cbd5e1"></a-text>
+        </a-entity>
+
+        <!-- Button: Earth Information -->
+        <a-entity id="btn-earth-info" class="clickable" position="-0.6 0.92 -1.1" rotation="-25 0 0"
+                  onclick="triggerEarthInfo()">
+          <a-box width="0.45" height="0.12" depth="0.04" material="color: #0077b6; emissive: #00e5ff; emissiveIntensity: 0.3"></a-box>
+          <a-text value="EARTH DATA" position="0 0 0.03" align="center" scale="0.22 0.22 0.22" color="#ffffff"></a-text>
+        </a-entity>
+
+        <!-- Button: Solar System Chart -->
+        <a-entity id="btn-solar-info" class="clickable" position="0.6 0.92 -1.1" rotation="-25 0 0"
+                  onclick="triggerSolarInfo()">
+          <a-box width="0.45" height="0.12" depth="0.04" material="color: #d97706; emissive: #f59e0b; emissiveIntensity: 0.3"></a-box>
+          <a-text value="SOLAR SYSTEM" position="0 0 0.03" align="center" scale="0.22 0.22 0.22" color="#ffffff"></a-text>
+        </a-entity>
+      </a-entity>
+
+
+      <!-- ==========================================
+           ROOM 2: CONTROL ROOM (East Wing)
+           ========================================== -->
+      <a-entity id="roomControl" position="4.6 0 1">
+        <!-- Control Console Desk -->
+        <a-box position="0 0.85 0" width="2.4" height="0.08" depth="0.9" material="color: #1e293b; metalness: 0.7; roughness: 0.3"></a-box>
+        <a-box position="0 0.42 -0.35" width="2.3" height="0.84" depth="0.1" material="color: #0f172a"></a-box>
+
+        <!-- Screen 1: Flight Telemetry (Left angled) -->
+        <a-entity position="-0.75 1.25 -0.15" rotation="0 20 0">
+          <a-plane width="0.65" height="0.42" mixin="screen-glow"></a-plane>
+          <a-text value="FLIGHT TELEMETRY\n\nPitch: +0.02 deg\nRoll:  0.00 deg\nVelocity: 7.66 km/s\nOrbit: Stable LEO" position="0 0 0.01" align="center" scale="0.22 0.22 0.22" color="#38bdf8"></a-text>
+        </a-entity>
+
+        <!-- Screen 2: Station Power Grid (Center) -->
+        <a-entity position="0 1.3 -0.25">
+          <a-plane width="0.75" height="0.48" mixin="screen-glow"></a-plane>
+          <a-text value="POWER GRID // REACTOR\n\nSolar Arrays: 100%\nBattery Reserve: 98%\nOxygen Scrubbers: NOMINAL\nThermal Loop: 21.4 C" position="0 0 0.01" align="center" scale="0.24 0.24 0.24" color="#4ade80"></a-text>
+        </a-entity>
+
+        <!-- Screen 3: Environmental Radar (Right angled) -->
+        <a-entity position="0.75 1.25 -0.15" rotation="0 -20 0">
+          <a-plane width="0.65" height="0.42" mixin="screen-glow"></a-plane>
+          <a-text value="RADAR & DEBRIS\n\nTracked Objects: 14\nClosest Approach: 42 km\nCollision Risk: 0.00%\nComms: Deep Space Link" position="0 0 0.01" align="center" scale="0.22 0.22 0.22" color="#fbbf24"></a-text>
+        </a-entity>
+
+        <!-- Interactive Station Light Button -->
+        <a-entity id="btn-station-light-3d" class="clickable" position="-0.4 0.92 0.15" rotation="-20 0 0" onclick="toggleInteriorLights()">
+          <a-box id="light-btn-mesh" width="0.32" height="0.12" depth="0.04" material="color: #0284c7; emissive: #38bdf8; emissiveIntensity: 0.4"></a-box>
+          <a-text id="light-btn-text" value="LIGHTS ON/OFF" position="0 0 0.03" align="center" scale="0.18 0.18 0.18" color="#ffffff"></a-text>
+        </a-entity>
+
+        <!-- Indicator Lights -->
+        <a-sphere position="0.2 0.92 0.15" radius="0.03" material="color: #22c55e; emissive: #22c55e; emissiveIntensity: 0.8; shader: flat;"></a-sphere>
+        <a-sphere position="0.32 0.92 0.15" radius="0.03" material="color: #3b82f6; emissive: #3b82f6; emissiveIntensity: 0.8; shader: flat;"></a-sphere>
+        <a-sphere position="0.44 0.92 0.15" radius="0.03" material="color: #eab308; emissive: #eab308; emissiveIntensity: 0.8; shader: flat;"></a-sphere>
+      </a-entity>
+
+
+      <!-- ==========================================
+           ROOM 3: RESEARCH AREA (West Wing)
+           ========================================== -->
+      <a-entity id="roomResearch" position="-4.6 0 0">
+        <!-- Research Work Table -->
+        <a-box position="0 0.85 0" width="2.2" height="0.08" depth="0.8" material="color: #1e293b; metalness: 0.5; roughness: 0.4"></a-box>
+        <a-cylinder position="-0.9 0.42 0" radius="0.04" height="0.84" material="color: #64748b"></a-cylinder>
+        <a-cylinder position="0.9 0.42 0" radius="0.04" height="0.84" material="color: #64748b"></a-cylinder>
+
+        <!-- Lab Terminal Screen -->
+        <a-entity position="-0.4 1.25 -0.15">
+          <a-plane width="0.7" height="0.45" material="color: #061c16; emissive: #00ff88; emissiveIntensity: 0.2;"></a-plane>
+          <a-text value="BIO-ANALYSIS LAB\n\nSample: Micro-gravity Flora\nCell Growth: +14.2%\nRadiation Shield: Active\nGene Sequence: STABLE" position="0 0 0.01" align="center" scale="0.22 0.22 0.22" color="#4ade80"></a-text>
+        </a-entity>
+
+        <!-- Hydroponic / Bio Specimen Cylinder Chamber -->
+        <a-cylinder position="0.55 1.15 0" radius="0.18" height="0.5" material="color: #00ff88; transparent: true; opacity: 0.35; roughness: 0.1">
+          <!-- Internal Glowing Plant / Crystal Specimen -->
+          <a-octahedron position="0 0 0" radius="0.08" material="color: #22c55e; emissive: #4ade80; emissiveIntensity: 0.8; shader: flat" animation="property: rotation; to: 0 360 360; loop: true; dur: 8000; easing: linear"></a-octahedron>
+        </a-cylinder>
+
+        <!-- Equipment Crates & Storage Boxes -->
+        <a-box position="-0.8 0.3 0.8" width="0.5" height="0.6" depth="0.5" material="color: #334155; roughness: 0.7"></a-box>
+        <a-box position="-0.8 0.75 0.8" width="0.4" height="0.3" depth="0.4" material="color: #475569; roughness: 0.6"></a-box>
+      </a-entity>
+
+
+      <!-- ==========================================
+           ROOM 4: LIVING AREA (South-West)
+           ========================================== -->
+      <a-entity id="roomLiving" position="-4.6 0 4.5">
+        <!-- Crew Sleep Pod / Bunk Bed -->
+        <a-box position="0 0.45 0" width="1.2" height="0.5" depth="2.2" material="color: #1e293b; roughness: 0.5"></a-box>
+        <!-- Mattress / Bedding -->
+        <a-box position="0 0.75 0" width="1.05" height="0.15" depth="2.0" material="color: #38bdf8; roughness: 0.8"></a-box>
+        <!-- Pillow -->
+        <a-box position="0 0.88 -0.75" width="0.8" height="0.12" depth="0.4" material="color: #f8fafc; roughness: 0.9"></a-box>
+        <!-- Sleep Pod Canopy Arch -->
+        <a-cylinder position="0 1.25 0" rotation="0 0 90" radius="0.65" height="1.15" theta-start="0" theta-length="180" material="color: #0f172a; side: double; roughness: 0.5"></a-cylinder>
+
+        <!-- Storage Locker Cabinet -->
+        <a-box position="1.1 1.2 0" width="0.45" height="2.2" depth="1.2" material="color: #334155; roughness: 0.4; metalness: 0.5"></a-box>
+
+        <!-- Living Area Wall Panel -->
+        <a-entity position="0 1.5 1.8" rotation="0 180 0">
+          <a-plane width="0.8" height="0.5" material="color: #0f172a; emissive: #38bdf8; emissiveIntensity: 0.15;"></a-plane>
+          <a-text value="CREW QUARTERS // 01\n\nTemp: 22.0 C | O2: 20.9%\nCycle: Orbit Day (Period 92m)\nShift: Alpha Watch" position="0 0 0.01" align="center" scale="0.22 0.22 0.22" color="#e2e8f0"></a-text>
+        </a-entity>
+      </a-entity>
+
+
+      <!-- ==========================================
+           ROOM 5: AIRLOCK MODULE (South Portal)
+           ========================================== -->
+      <a-entity id="roomAirlock" position="1.5 0 5.4">
+        <!-- Airlock Chamber Frame / Portal -->
+        <a-box position="0 1.5 -0.1" width="2.4" height="3" depth="0.2" material="color: #0f172a; roughness: 0.6"></a-box>
+        
+        <!-- Sliding Airlock Door Entity (Animated open/close) -->
+        <a-entity id="airlockDoor" position="0 0 0">
+          <!-- Left Door Panel -->
+          <a-box id="doorLeft" position="-0.5 1.3 0" width="0.95" height="2.4" depth="0.1" material="color: #eab308; roughness: 0.4; metalness: 0.6"></a-box>
+          <!-- Right Door Panel -->
+          <a-box id="doorRight" position="0.5 1.3 0" width="0.95" height="2.4" depth="0.1" material="color: #eab308; roughness: 0.4; metalness: 0.6"></a-box>
+          <!-- Hazard Warning Stripes on Door -->
+          <a-plane position="0 1.3 0.06" width="1.8" height="0.2" material="color: #000000; shader: flat; opacity: 0.8"></a-plane>
+          <a-text value="CAUTION: AIRLOCK ACCESS" position="0 1.3 0.07" align="center" scale="0.28 0.28 0.28" color="#facc15"></a-text>
+        </a-entity>
+
+        <!-- Airlock Outer Window (Visible when door opens) -->
+        <a-plane position="0 1.3 1.2" width="1.8" height="2.2" material="color: #00e5ff; opacity: 0.15; transparent: true; roughness: 0.1"></a-plane>
+
+        <!-- Interactive Airlock Cycle Wall Button -->
+        <a-entity id="btn-airlock-3d" class="clickable" position="-1.2 1.3 -0.2" rotation="0 0 0" onclick="toggleAirlockDoor()">
+          <a-box width="0.3" height="0.3" depth="0.05" material="color: #1e293b; roughness: 0.3"></a-box>
+          <a-cylinder id="airlock-button-light" position="0 0 0.03" rotation="90 0 0" radius="0.08" height="0.04" material="color: #22c55e; emissive: #22c55e; emissiveIntensity: 0.9; shader: flat;"></a-cylinder>
+          <a-text value="AIRLOCK" position="0 -0.2 0.01" align="center" scale="0.2 0.2 0.2" color="#e2e8f0"></a-text>
+        </a-entity>
+
+        <!-- Airlock Status Indicator Light above Door -->
+        <a-sphere id="airlock-beacon" position="0 2.65 -0.05" radius="0.08" material="color: #22c55e; emissive: #22c55e; emissiveIntensity: 1; shader: flat"></a-sphere>
+      </a-entity>
+
+    </a-entity>
+  </a-scene>
+
+  <!-- ==========================================
+       MAIN JAVASCRIPT APPLICATION LOGIC
+       ========================================== -->
+  <script>
+    // State Variables
+    let lightsOn = true;
+    let airlockOpen = false;
+    let isAirlockAnimating = false;
+
+    // DOM Elements
+    const toastTitle = document.getElementById('toast-title');
+    const toastDesc = document.getElementById('toast-desc');
+    const vrTitle = document.getElementById('vr-info-title');
+    const vrLine1 = document.getElementById('vr-info-line1');
+    const vrLine2 = document.getElementById('vr-info-line2');
+    const vrLine3 = document.getElementById('vr-info-line3');
+    
+    // 1. Enter VR Function
+    function enterVRMode() {
+      SoundFX.playBeep(950);
+      const scene = document.querySelector('a-scene');
+      if (scene) {
+        if (scene.hasLoaded) {
+          scene.enterVR();
+        } else {
+          scene.addEventListener('loaded', () => scene.enterVR());
+        }
+      }
+    }
+
+    // 2. Info Card Update Function (Syncs 2D overlay & 3D floating panel)
+    function updateInfoDisplay(title, description) {
+      if (toastTitle && toastDesc) {
+        toastTitle.innerText = title;
+        toastDesc.innerText = description;
+      }
+      if (vrTitle && vrLine1) {
+        vrTitle.setAttribute('value', title);
+        vrLine1.setAttribute('value', description.substring(0, 42));
+        vrLine2.setAttribute('value', description.substring(42, 84) || '---');
+        vrLine3.setAttribute('value', description.substring(84, 126) || '---');
+      }
+    }
+
+    // 3. Toggle Interior Station Lights
+    function toggleInteriorLights() {
+      SoundFX.playBeep(lightsOn ? 440 : 880);
+      lightsOn = !lightsOn;
+
+      const amb = document.getElementById('ambientLight');
+      const l1 = document.getElementById('stationLight1');
+      const l2 = document.getElementById('stationLight2');
+      const l3 = document.getElementById('stationLight3');
+      const lightBtnMesh = document.getElementById('light-btn-mesh');
+      const uiLightBtn = document.getElementById('btn-toggle-lights');
+
+      if (lightsOn) {
+        // Bright Normal Mode
+        if (amb) amb.setAttribute('intensity', '0.55');
+        if (l1) l1.setAttribute('intensity', '0.65');
+        if (l2) l2.setAttribute('intensity', '0.4');
+        if (l3) l3.setAttribute('intensity', '0.35');
+        if (lightBtnMesh) lightBtnMesh.setAttribute('material', 'color: #0284c7; emissive: #38bdf8; emissiveIntensity: 0.4');
+        if (uiLightBtn) uiLightBtn.innerText = '💡 Lights [ON]';
+        updateInfoDisplay('STATION LIGHTING', 'Main interior luminescence set to DAYLIGHT NOMINAL (100%).');
+      } else {
+        // Night / Emergency Mode (Low blue-red ambient)
+        if (amb) amb.setAttribute('intensity', '0.12');
+        if (l1) l1.setAttribute('intensity', '0.08');
+        if (l2) l2.setAttribute('intensity', '0.15');
+        if (l3) l3.setAttribute('intensity', '0.1');
+        if (lightBtnMesh) lightBtnMesh.setAttribute('material', 'color: #dc2626; emissive: #ef4444; emissiveIntensity: 0.6');
+        if (uiLightBtn) uiLightBtn.innerText = '💡 Lights [NIGHT]';
+        updateInfoDisplay('STATION LIGHTING', 'Switched to LOW-POWER ORBITAL NIGHT MODE (15%).');
+      }
+    }
+
+    // 4. Toggle Airlock Door (Smooth sliding animation)
+    function toggleAirlockDoor() {
+      if (isAirlockAnimating) return;
+      isAirlockAnimating = true;
+
+      SoundFX.playDoorSound();
+      airlockOpen = !airlockOpen;
+
+      const doorLeft = document.getElementById('doorLeft');
+      const doorRight = document.getElementById('doorRight');
+      const beacon = document.getElementById('airlock-beacon');
+      const btnLight = document.getElementById('airlock-button-light');
+      const uiAirlockBtn = document.getElementById('btn-toggle-airlock');
+
+      const targetLeftX = airlockOpen ? -1.35 : -0.5;
+      const targetRightX = airlockOpen ? 1.35 : 0.5;
+      const beaconColor = airlockOpen ? '#eab308' : '#22c55e';
+
+      if (beacon) beacon.setAttribute('material', `color: ${beaconColor}; emissive: ${beaconColor}; emissiveIntensity: 1; shader: flat;`);
+      if (btnLight) btnLight.setAttribute('material', `color: ${beaconColor}; emissive: ${beaconColor}; emissiveIntensity: 1; shader: flat;`);
+
+      // Animate door panels
+      if (doorLeft && doorRight) {
+        doorLeft.setAttribute('animation', `property: position; to: ${targetLeftX} 1.3 0; dur: 800; easing: easeInOutQuad`);
+        doorRight.setAttribute('animation', `property: position; to: ${targetRightX} 1.3 0; dur: 800; easing: easeInOutQuad`);
+      }
+
+      setTimeout(() => {
+        isAirlockAnimating = false;
+        if (uiAirlockBtn) uiAirlockBtn.innerText = airlockOpen ? '🚪 Airlock [OPEN]' : '🚪 Airlock [CLOSED]';
+      }, 820);
+
+      if (airlockOpen) {
+        updateInfoDisplay('AIRLOCK STATUS', 'WARNING: Airlock Chamber Open. Outer vacuum barrier active.');
+      } else {
+        updateInfoDisplay('AIRLOCK STATUS', 'Airlock Chamber Sealed. Cabin atmosphere fully pressurized (101.3 kPa).');
+      }
+    }
+
+    // 5. Earth Info Button Handler
+    function triggerEarthInfo() {
+      SoundFX.playBeep(1000);
+      updateInfoDisplay(
+        'PLANET EARTH',
+        'Type: Terrestrial Planet | Diameter: 12,742 km | Distance from Sun: 149.6M km | Atmosphere: 78% N2, 21% O2'
+      );
+    }
+
+    // 6. Solar System Info Button Handler
+    function triggerSolarInfo() {
+      SoundFX.playBeep(900);
+      updateInfoDisplay(
+        'SOLAR SYSTEM ORRERY',
+        '8 Major Planets in compressed orbital scale. Point and click any planetary sphere for scientific details.'
+      );
+    }
+
+    // Initialize Keyboard Shortuts (E to interact with look target)
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'e' || e.key === 'E') {
+        const cursor = document.getElementById('cursor');
+        if (cursor && cursor.components && cursor.components.raycaster) {
+          const intersected = cursor.components.raycaster.intersectedEls;
+          if (intersected && intersected.length > 0) {
+            intersected[0].emit('click');
+          }
+        }
+      }
+    });
+
+    // Handle user gestures to unlock Web Audio API
+    window.addEventListener('click', () => SoundFX.init(), { once: true });
+    window.addEventListener('touchstart', () => SoundFX.init(), { once: true });
+  </script>
+</body>
+</html>
